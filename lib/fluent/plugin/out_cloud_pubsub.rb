@@ -40,13 +40,23 @@ module Fluent
       [tag, time, record].to_msgpack
     end
 
+    def publish(msgs)
+      log.debug "publish #{msgs.length} messages"
+
+      @client.publish do |batch|
+        msgs.each do |m|
+          batch.publish m
+        end
+      end
+    end
+
     def write(chunk)
       msgs = []
       msgs_size = 0
 
       chunk.msgpack_each do |tag, time, record|
         size = Yajl.dump(record).bytesize
-        if msgs.length > 0 && (msgs_size + size > max_req_size || msgs.length + 1 > max_msgs_per_req)
+        if msgs.length > 0 && (msgs_size + size > @max_req_size || msgs.length + 1 > @max_msgs_per_req)
           publish(msgs)
           msgs = []
           msgs_size = 0
@@ -64,11 +74,4 @@ module Fluent
     end
   end
 
-  def publish(msgs)
-    @client.publish do |batch|
-      msgs.each do |m|
-        batch.publish m
-      end
-    end
-  end
 end
